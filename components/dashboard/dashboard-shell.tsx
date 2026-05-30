@@ -38,12 +38,14 @@ const nav = [
 ];
 
 const commands = [
-  "Run checkout regression",
-  "Open latest screenshot diff",
-  "Draft PR review comment",
-  "Replay failing browser session",
-  "Audit accessibility risks",
-  "Create production heartbeat"
+  { id: "run-sweep", label: "Run AI Sweep", shortcut: "⌘R" },
+  { id: "switch-prod", label: "Switch to Production Environment", shortcut: "⌘P" },
+  { id: "switch-staging", label: "Switch to Staging Environment", shortcut: "⌘S" },
+  { id: "switch-preview", label: "Switch to Preview Environment", shortcut: "⌘V" },
+  { id: "filter-high", label: "Filter by High Severity Runs", shortcut: "⌘H" },
+  { id: "filter-all", label: "Show All Runs", shortcut: "⌘A" },
+  { id: "view-mobile", label: "View Mobile Screenshot Diffs", shortcut: "⌘M" },
+  { id: "reset-sim", label: "Reset Simulation State", shortcut: "⌘X" }
 ];
 
 const SIMULATION_STEPS = [
@@ -215,6 +217,8 @@ export function DashboardShell() {
   const [selectedRun, setSelectedRun] = useState(dashboardRuns[0]);
   const [query, setQuery] = useState("");
   const [simStep, setSimStep] = useState<number | null>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [severityFilter, setSeverityFilter] = useState<string | null>(null);
 
   const terminalRef = useRef<HTMLDivElement>(null);
 
@@ -231,9 +235,13 @@ export function DashboardShell() {
   }, []);
 
   const filteredCommands = useMemo(
-    () => commands.filter((command) => command.toLowerCase().includes(query.toLowerCase())),
+    () => commands.filter((command) => command.label.toLowerCase().includes(query.toLowerCase())),
     [query]
   );
+
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [query]);
 
   const handleRunSweep = () => {
     if (simStep !== null) return;
@@ -267,9 +275,14 @@ export function DashboardShell() {
     });
   }, [simStep]);
 
+  const filteredRuns = useMemo(() => {
+    if (!severityFilter) return dynamicRuns;
+    return dynamicRuns.filter((run) => run.severity === severityFilter || run.status === "Blocked");
+  }, [dynamicRuns, severityFilter]);
+
   const activeRun = useMemo(() => {
-    return dynamicRuns.find((r) => r.name === selectedRun.name) || dynamicRuns[0];
-  }, [dynamicRuns, selectedRun.name]);
+    return filteredRuns.find((r) => r.name === selectedRun.name) || filteredRuns[0] || dynamicRuns[0];
+  }, [filteredRuns, selectedRun.name, dynamicRuns]);
 
   const currentMetrics = useMemo(() => {
     if (simStep === null) {
@@ -368,6 +381,63 @@ export function DashboardShell() {
       terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
     }
   }, [currentLogs]);
+
+  const executeCommand = (id: string) => {
+    setPaletteOpen(false);
+    setQuery("");
+    
+    switch (id) {
+      case "run-sweep":
+        handleRunSweep();
+        break;
+      case "switch-prod": {
+        const prodRun = dynamicRuns.find((r) => r.env === "Prod");
+        if (prodRun) setSelectedRun(prodRun);
+        break;
+      }
+      case "switch-staging": {
+        const stagingRun = dynamicRuns.find((r) => r.env === "Staging");
+        if (stagingRun) setSelectedRun(stagingRun);
+        break;
+      }
+      case "switch-preview": {
+        const previewRun = dynamicRuns.find((r) => r.env === "Preview");
+        if (previewRun) setSelectedRun(previewRun);
+        break;
+      }
+      case "filter-high":
+        setSeverityFilter("High");
+        break;
+      case "filter-all":
+        setSeverityFilter(null);
+        break;
+      case "view-mobile": {
+        const mobileRun = dynamicRuns.find((r) => r.name.toLowerCase().includes("mobile"));
+        if (mobileRun) setSelectedRun(mobileRun);
+        break;
+      }
+      case "reset-sim":
+        setSimStep(null);
+        break;
+      default:
+        break;
+    }
+  };
+
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setActiveIndex((prev) => (filteredCommands.length > 0 ? (prev + 1) % filteredCommands.length : 0));
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setActiveIndex((prev) => (filteredCommands.length > 0 ? (prev - 1 + filteredCommands.length) % filteredCommands.length : 0));
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      if (filteredCommands[activeIndex]) {
+        executeCommand(filteredCommands[activeIndex].id);
+      }
+    }
+  };
 
   return (
     <div className="noise min-h-screen bg-ink-950 text-white">
@@ -490,13 +560,30 @@ export function DashboardShell() {
               <div className="grid gap-4 xl:grid-cols-[.94fr_1.06fr]">
                 <section className="rounded-[1.75rem] border border-white/[.08] bg-white/[.04] p-4">
                   <div className="mb-4 flex items-center justify-between">
-                    <h2 className="font-semibold">Active runs</h2>
-                    <Badge tone={simStep !== null ? "cyan" : "red"}>
-                      {simStep !== null ? "running" : "1 high severity"}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <h2 className="font-semibold">Active runs</h2>
+                      {severityFilter && (
+                        <span className="font-mono text-[9px] text-signal-red uppercase tracking-wider animate-pulse">
+                          [filtered]
+                        </span>
+                      )}
+                    </div>
+                    {severityFilter ? (
+                      <button 
+                        onClick={() => setSeverityFilter(null)}
+                        className="font-mono text-[10px] text-signal-cyan hover:underline transition"
+                        type="button"
+                      >
+                        Reset Filter
+                      </button>
+                    ) : (
+                      <Badge tone={simStep !== null ? "cyan" : "red"}>
+                        {simStep !== null ? "running" : "1 high severity"}
+                      </Badge>
+                    )}
                   </div>
                   <div className="space-y-3">
-                    {dynamicRuns.map((run) => (
+                    {filteredRuns.map((run) => (
                       <button
                         key={run.name}
                         type="button"
@@ -760,22 +847,41 @@ export function DashboardShell() {
                   autoFocus
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Run command or jump to evidence"
+                  onKeyDown={handleKeyDown}
+                  placeholder="Type to filter commands... (↑/↓ to navigate, Enter to run)"
                   className="h-10 flex-1 bg-transparent text-lg outline-none placeholder:text-white/28"
                 />
               </div>
-              <div className="p-3">
-                {filteredCommands.map((command, index) => (
-                  <button
-                    key={command}
-                    className="flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left text-sm text-white/68 transition hover:bg-white/[.06] hover:text-white"
-                    type="button"
-                    onClick={() => setPaletteOpen(false)}
-                  >
-                    {command}
-                    <span className="font-mono text-xs text-white/28">⌘{index + 1}</span>
-                  </button>
-                ))}
+              <div className="p-3 space-y-1">
+                {filteredCommands.length > 0 ? (
+                  filteredCommands.map((command, index) => (
+                    <button
+                      key={command.id}
+                      className={cn(
+                        "flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left text-sm transition duration-150",
+                        index === activeIndex
+                          ? "bg-white/[.09] text-white shadow-[inset_0_0_1px_rgba(255,255,255,0.2)]"
+                          : "text-white/68 hover:bg-white/[.04] hover:text-white"
+                      )}
+                      type="button"
+                      onClick={() => executeCommand(command.id)}
+                      onMouseEnter={() => setActiveIndex(index)}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className={cn(
+                          "h-1.5 w-1.5 rounded-full bg-signal-cyan opacity-0 transition",
+                          index === activeIndex && "opacity-100"
+                        )} />
+                        {command.label}
+                      </span>
+                      <span className="font-mono text-xs text-white/28">{command.shortcut}</span>
+                    </button>
+                  ))
+                ) : (
+                  <div className="py-8 text-center text-sm text-white/34 font-mono">
+                    No commands matched your query
+                  </div>
+                )}
               </div>
             </motion.div>
           </motion.div>
