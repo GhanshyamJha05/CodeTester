@@ -12,6 +12,7 @@ import {
   GitPullRequest,
   Home,
   KeyRound,
+  Loader2,
   MonitorCheck,
   PlayCircle,
   Search,
@@ -21,7 +22,7 @@ import {
   Video
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { activityFeed, dashboardRuns, reasoningLogs } from "@/lib/data";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -45,11 +46,177 @@ const commands = [
   "Create production heartbeat"
 ];
 
+const SIMULATION_STEPS = [
+  {
+    step: 0,
+    metrics: {
+      health: { value: "100%", status: "Checking..." },
+      sessions: { value: "0", status: "Starting..." },
+      diffs: { value: "0", status: "Idle" },
+      assertions: { value: "0", status: "Queued" }
+    },
+    logs: [
+      "[planner] User persona: returning buyer with saved cart"
+    ],
+    activities: [],
+    runHealth: 100,
+    screenshotState: "loading",
+    showA11yAlert: false
+  },
+  {
+    step: 1,
+    metrics: {
+      health: { value: "98%", status: "Checking..." },
+      sessions: { value: "2", status: "Live" },
+      diffs: { value: "0", status: "Idle" },
+      assertions: { value: "15", status: "Running" }
+    },
+    logs: [
+      "[planner] User persona: returning buyer with saved cart",
+      "[browser] Launching chromium session: preview-428"
+    ],
+    activities: [
+      "Planner inferred checkout as highest revenue-risk path."
+    ],
+    runHealth: 98,
+    screenshotState: "clean",
+    showA11yAlert: false
+  },
+  {
+    step: 2,
+    metrics: {
+      health: { value: "95%", status: "Checking..." },
+      sessions: { value: "4", status: "Live" },
+      diffs: { value: "0", status: "Idle" },
+      assertions: { value: "42", status: "Running" }
+    },
+    logs: [
+      "[planner] User persona: returning buyer with saved cart",
+      "[browser] Launching chromium session: preview-428",
+      "[action] type coupon SPRING-OLD"
+    ],
+    activities: [
+      "Planner inferred checkout as highest revenue-risk path.",
+      "Browser worker recovered after renamed Continue button."
+    ],
+    runHealth: 95,
+    screenshotState: "typing",
+    showA11yAlert: false
+  },
+  {
+    step: 3,
+    metrics: {
+      health: { value: "90%", status: "Checking..." },
+      sessions: { value: "8", status: "Live" },
+      diffs: { value: "0", status: "Checking" },
+      assertions: { value: "85", status: "Running" }
+    },
+    logs: [
+      "[planner] User persona: returning buyer with saved cart",
+      "[browser] Launching chromium session: preview-428",
+      "[action] type coupon SPRING-OLD",
+      "[network] /api/coupons -> 422 in 184ms"
+    ],
+    activities: [
+      "Planner inferred checkout as highest revenue-risk path.",
+      "Browser worker recovered after renamed Continue button.",
+      "Coupon API validation error received."
+    ],
+    runHealth: 90,
+    screenshotState: "typing",
+    showA11yAlert: false
+  },
+  {
+    step: 4,
+    metrics: {
+      health: { value: "85%", status: "Reviewing..." },
+      sessions: { value: "8", status: "Live" },
+      diffs: { value: "1", status: "Review" },
+      assertions: { value: "112", status: "Running" }
+    },
+    logs: [
+      "[planner] User persona: returning buyer with saved cart",
+      "[browser] Launching chromium session: preview-428",
+      "[action] type coupon SPRING-OLD",
+      "[network] /api/coupons -> 422 in 184ms",
+      "[vision] CTA bounding box intersects validation region"
+    ],
+    activities: [
+      "Planner inferred checkout as highest revenue-risk path.",
+      "Browser worker recovered after renamed Continue button.",
+      "Coupon API validation error received.",
+      "Vision verifier flagged mobile overlap in coupon state."
+    ],
+    runHealth: 85,
+    screenshotState: "error",
+    showA11yAlert: false
+  },
+  {
+    step: 5,
+    metrics: {
+      health: { value: "82%", status: "Reviewing..." },
+      sessions: { value: "8", status: "Live" },
+      diffs: { value: "2", status: "Review" },
+      assertions: { value: "120", status: "Running" }
+    },
+    logs: [
+      "[planner] User persona: returning buyer with saved cart",
+      "[browser] Launching chromium session: preview-428",
+      "[action] type coupon SPRING-OLD",
+      "[network] /api/coupons -> 422 in 184ms",
+      "[vision] CTA bounding box intersects validation region",
+      "[a11y] focus escaped payment modal after 6 tab presses"
+    ],
+    activities: [
+      "Planner inferred checkout as highest revenue-risk path.",
+      "Browser worker recovered after renamed Continue button.",
+      "Coupon API validation error received.",
+      "Vision verifier flagged mobile overlap in coupon state.",
+      "Accessibility audit found modal focus escape."
+    ],
+    runHealth: 82,
+    screenshotState: "error",
+    showA11yAlert: true
+  },
+  {
+    step: 6,
+    metrics: {
+      health: { value: "82%", status: "Blocked" },
+      sessions: { value: "8", status: "Live" },
+      diffs: { value: "3", status: "Review" },
+      assertions: { value: "126", status: "Passed" }
+    },
+    logs: [
+      "[planner] User persona: returning buyer with saved cart",
+      "[browser] Launching chromium session: preview-428",
+      "[action] type coupon SPRING-OLD",
+      "[network] /api/coupons -> 422 in 184ms",
+      "[vision] CTA bounding box intersects validation region",
+      "[a11y] focus escaped payment modal after 6 tab presses",
+      "[report] release gate: blocked, confidence high"
+    ],
+    activities: [
+      "Planner inferred checkout as highest revenue-risk path.",
+      "Browser worker recovered after renamed Continue button.",
+      "Coupon API validation error received.",
+      "Vision verifier flagged mobile overlap in coupon state.",
+      "Accessibility audit found modal focus escape.",
+      "PR review comment drafted with reproduction steps."
+    ],
+    runHealth: 82,
+    screenshotState: "error",
+    showA11yAlert: true
+  }
+];
+
 export function DashboardShell() {
   const [collapsed, setCollapsed] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [selectedRun, setSelectedRun] = useState(dashboardRuns[0]);
   const [query, setQuery] = useState("");
+  const [simStep, setSimStep] = useState<number | null>(null);
+
+  const terminalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -67,6 +234,140 @@ export function DashboardShell() {
     () => commands.filter((command) => command.toLowerCase().includes(query.toLowerCase())),
     [query]
   );
+
+  const handleRunSweep = () => {
+    if (simStep !== null) return;
+    
+    let currentStep = 0;
+    setSimStep(0);
+    
+    const interval = setInterval(() => {
+      currentStep++;
+      if (currentStep < SIMULATION_STEPS.length) {
+        setSimStep(currentStep);
+      } else {
+        clearInterval(interval);
+        setSimStep(null);
+      }
+    }, 2200);
+  };
+
+  const dynamicRuns = useMemo(() => {
+    if (simStep === null) return dashboardRuns;
+    const currentStepData = SIMULATION_STEPS[simStep];
+    return dashboardRuns.map((run) => {
+      if (run.name === "Checkout regression") {
+        return {
+          ...run,
+          health: currentStepData.runHealth,
+          status: currentStepData.metrics.health.status
+        };
+      }
+      return run;
+    });
+  }, [simStep]);
+
+  const activeRun = useMemo(() => {
+    return dynamicRuns.find((r) => r.name === selectedRun.name) || dynamicRuns[0];
+  }, [dynamicRuns, selectedRun.name]);
+
+  const currentMetrics = useMemo(() => {
+    if (simStep === null) {
+      return {
+        health: { value: "82%", status: "Blocked", tone: "red" as const },
+        sessions: { value: "8", status: "Live", tone: "green" as const },
+        diffs: { value: "3", status: "Review", tone: "amber" as const },
+        assertions: { value: "126", status: "Passed", tone: "green" as const }
+      };
+    }
+    const stepData = SIMULATION_STEPS[simStep];
+    
+    const getHealthTone = (status: string) => {
+      if (status === "Blocked") return "red" as const;
+      if (status === "Reviewing...") return "amber" as const;
+      return "cyan" as const;
+    };
+    
+    const getDiffsTone = (status: string) => {
+      if (status === "Review") return "amber" as const;
+      if (status === "Checking") return "cyan" as const;
+      return "neutral" as const;
+    };
+
+    return {
+      health: { 
+        value: stepData.metrics.health.value, 
+        status: stepData.metrics.health.status,
+        tone: getHealthTone(stepData.metrics.health.status)
+      },
+      sessions: { 
+        value: stepData.metrics.sessions.value, 
+        status: stepData.metrics.sessions.status,
+        tone: stepData.metrics.sessions.status === "Live" ? ("green" as const) : ("cyan" as const)
+      },
+      diffs: { 
+        value: stepData.metrics.diffs.value, 
+        status: stepData.metrics.diffs.status,
+        tone: getDiffsTone(stepData.metrics.diffs.status)
+      },
+      assertions: { 
+        value: stepData.metrics.assertions.value, 
+        status: stepData.metrics.assertions.status,
+        tone: stepData.metrics.assertions.status === "Passed" ? ("green" as const) : ("cyan" as const)
+      }
+    };
+  }, [simStep]);
+
+  const screenshotState = useMemo(() => {
+    if (simStep === null) return "error";
+    return SIMULATION_STEPS[simStep].screenshotState;
+  }, [simStep]);
+
+  const currentLogs = useMemo(() => {
+    if (simStep === null) return reasoningLogs;
+    return SIMULATION_STEPS[simStep].logs;
+  }, [simStep]);
+
+  const currentActivities = useMemo(() => {
+    if (simStep === null) return activityFeed;
+    return SIMULATION_STEPS[simStep].activities;
+  }, [simStep]);
+
+  const prStatus = useMemo(() => {
+    if (simStep === null) {
+      return {
+        title: "PR #428 blocked",
+        desc: "High severity visual regression requires review.",
+        tone: "red" as const
+      };
+    }
+    const stepData = SIMULATION_STEPS[simStep];
+    if (stepData.step <= 2) {
+      return {
+        title: "PR #428 scanning...",
+        desc: "Running regression suites on Chromium clusters.",
+        tone: "cyan" as const
+      };
+    }
+    if (stepData.step <= 5) {
+      return {
+        title: "PR #428 review required",
+        desc: "Potential regressions flagged, waiting for assertion suite.",
+        tone: "amber" as const
+      };
+    }
+    return {
+      title: "PR #428 blocked",
+      desc: "High severity visual regression requires review.",
+      tone: "red" as const
+    };
+  }, [simStep]);
+
+  useEffect(() => {
+    if (terminalRef.current) {
+      terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
+    }
+  }, [currentLogs]);
 
   return (
     <div className="noise min-h-screen bg-ink-950 text-white">
@@ -138,9 +439,18 @@ export function DashboardShell() {
                   Ctrl K
                 </span>
               </Button>
-              <Button>
-                <PlayCircle className="h-4 w-4" />
-                Run AI sweep
+              <Button onClick={handleRunSweep} disabled={simStep !== null}>
+                {simStep !== null ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin text-signal-cyan" />
+                    Sweeping... {simStep + 1}/{SIMULATION_STEPS.length}
+                  </>
+                ) : (
+                  <>
+                    <PlayCircle className="h-4 w-4" />
+                    Run AI sweep
+                  </>
+                )}
               </Button>
             </div>
           </header>
@@ -149,19 +459,30 @@ export function DashboardShell() {
             <div className="space-y-4">
               <div className="grid gap-4 md:grid-cols-4">
                 {[
-                  ["Release health", "82%", "Blocked"],
-                  ["Browser sessions", "8", "Live"],
-                  ["Visual diffs", "3", "Review"],
-                  ["Assertions", "126", "Passed"]
-                ].map(([label, value, status]) => (
+                  { label: "Release health", value: currentMetrics.health.value, status: currentMetrics.health.status, tone: currentMetrics.health.tone },
+                  { label: "Browser sessions", value: currentMetrics.sessions.value, status: currentMetrics.sessions.status, tone: currentMetrics.sessions.tone },
+                  { label: "Visual diffs", value: currentMetrics.diffs.value, status: currentMetrics.diffs.status, tone: currentMetrics.diffs.tone },
+                  { label: "Assertions", value: currentMetrics.assertions.value, status: currentMetrics.assertions.status, tone: currentMetrics.assertions.tone }
+                ].map((metric) => (
                   <motion.article
-                    key={label}
+                    key={metric.label}
                     whileHover={{ y: -4 }}
                     className="rounded-3xl border border-white/[.08] bg-white/[.04] p-4"
                   >
-                    <p className="text-sm text-white/44">{label}</p>
-                    <strong className="mt-4 block text-3xl tracking-[-0.04em]">{value}</strong>
-                    <span className="mt-2 block font-mono text-xs text-signal-cyan">{status}</span>
+                    <p className="text-sm text-white/44">{metric.label}</p>
+                    <strong className="mt-4 block text-3xl tracking-[-0.04em]">
+                      {metric.value}
+                    </strong>
+                    <span className={cn(
+                      "mt-2 block font-mono text-xs",
+                      metric.tone === "red" && "text-signal-red",
+                      metric.tone === "green" && "text-signal-green",
+                      metric.tone === "amber" && "text-signal-amber",
+                      metric.tone === "cyan" && "text-signal-cyan",
+                      metric.tone === "neutral" && "text-white/34"
+                    )}>
+                      {metric.status}
+                    </span>
                   </motion.article>
                 ))}
               </div>
@@ -170,17 +491,19 @@ export function DashboardShell() {
                 <section className="rounded-[1.75rem] border border-white/[.08] bg-white/[.04] p-4">
                   <div className="mb-4 flex items-center justify-between">
                     <h2 className="font-semibold">Active runs</h2>
-                    <Badge tone="red">1 high severity</Badge>
+                    <Badge tone={simStep !== null ? "cyan" : "red"}>
+                      {simStep !== null ? "running" : "1 high severity"}
+                    </Badge>
                   </div>
                   <div className="space-y-3">
-                    {dashboardRuns.map((run) => (
+                    {dynamicRuns.map((run) => (
                       <button
                         key={run.name}
                         type="button"
                         onClick={() => setSelectedRun(run)}
                         className={cn(
                           "w-full rounded-2xl border p-4 text-left transition",
-                          selectedRun.name === run.name
+                          activeRun.name === run.name
                             ? "border-signal-cyan/34 bg-signal-cyan/10"
                             : "border-white/[.07] bg-black/20 hover:bg-white/[.055]"
                         )}
@@ -210,29 +533,122 @@ export function DashboardShell() {
                     <Badge tone="amber">mobile 390px</Badge>
                   </div>
                   <div className="relative min-h-[430px] overflow-hidden rounded-[1.4rem] border border-white/[.09] bg-ink-900 p-5">
-                    <div className="absolute inset-x-0 top-24 h-px animate-beam bg-gradient-to-r from-transparent via-signal-cyan to-transparent" />
-                    <div className="mx-auto max-w-[260px] rounded-[1.6rem] border border-white/[.14] bg-ink-800 p-3 shadow-cinematic">
-                      <div className="mb-3 h-3 w-24 rounded-full bg-signal-cyan/35" />
-                      <div className="h-32 rounded-2xl bg-gradient-to-br from-signal-green/20 to-white/[.04]" />
-                      <div className="mt-3 space-y-2 rounded-2xl bg-black/32 p-3">
-                        <div className="h-9 rounded-xl bg-white/[.09]" />
-                        <div className="h-9 w-2/3 rounded-xl bg-white/[.07]" />
-                        <div className="-mt-1 h-11 rounded-xl bg-signal-green shadow-[0_-15px_0_rgba(255,88,113,.48)]" />
-                      </div>
+                    {/* Sweeping scan beam */}
+                    {(simStep !== null || screenshotState === "error") && (
+                      <div className="absolute inset-x-0 h-px animate-beam bg-gradient-to-r from-transparent via-signal-cyan to-transparent z-20" />
+                    )}
+
+                    <div className="mx-auto max-w-[260px] relative rounded-[1.6rem] border border-white/[.14] bg-ink-800 p-3 shadow-cinematic">
+                      {screenshotState === "loading" ? (
+                        <div className="flex h-[220px] flex-col items-center justify-center gap-3">
+                          <Loader2 className="h-8 w-8 animate-spin text-signal-cyan/70" />
+                          <p className="font-mono text-[10px] text-white/34 uppercase tracking-widest animate-pulse">Replaying flow...</p>
+                        </div>
+                      ) : (
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ duration: 0.4 }}
+                        >
+                          <div className="mb-3 h-3 w-24 rounded-full bg-signal-cyan/35" />
+                          <div className="h-32 rounded-2xl bg-gradient-to-br from-signal-green/20 to-white/[.04] p-4 flex flex-col justify-between">
+                            <div className="text-[10px] font-mono text-white/40">Checkout Summary</div>
+                            <div className="text-right text-lg font-bold text-white">$149.00</div>
+                          </div>
+                          
+                          <div className="mt-3 space-y-2 rounded-2xl bg-black/32 p-3 relative">
+                            {/* Card Input field */}
+                            <div className="h-9 rounded-xl bg-white/[.09] px-3 flex items-center justify-between text-[10px] font-mono text-white/50">
+                              <span>Card Number</span>
+                              {screenshotState !== "clean" && (
+                                <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                                  •••• 4242
+                                </motion.span>
+                              )}
+                            </div>
+                            
+                            {/* Promo Input field */}
+                            <div className="h-9 rounded-xl bg-white/[.07] px-3 flex items-center justify-between text-[10px] font-mono text-white/50">
+                              <span>Promo Code</span>
+                              {(screenshotState === "typing" || screenshotState === "error") && (
+                                <motion.span 
+                                  initial={{ width: 0 }} 
+                                  animate={{ width: "auto" }}
+                                  className="text-signal-cyan font-bold overflow-hidden whitespace-nowrap"
+                                >
+                                  SPRING-OLD
+                                </motion.span>
+                              )}
+                            </div>
+
+                            {/* Overlap Error container if screenshotState is error */}
+                            <AnimatePresence>
+                              {screenshotState === "error" && (
+                                <motion.div 
+                                  initial={{ opacity: 0, y: -4 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  exit={{ opacity: 0 }}
+                                  className="absolute left-3 right-3 -top-5 bg-signal-red/10 border border-signal-red/30 rounded-lg p-1.5 text-[9px] text-signal-red leading-tight"
+                                >
+                                  Coupon expired. Promotion ended.
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+
+                            {/* Button */}
+                            <div className={cn(
+                              "h-11 rounded-xl bg-signal-green flex items-center justify-center font-mono text-[10px] font-bold text-ink-950 transition duration-500",
+                              screenshotState === "error" && "shadow-[0_-15px_0_rgba(255,88,113,.48)] -mt-1"
+                            )}>
+                              PLACE ORDER
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
                     </div>
-                    <div className="absolute bottom-20 right-[26%] grid h-9 w-9 place-items-center rounded-full bg-signal-red text-sm font-black shadow-[0_0_0_12px_rgba(255,88,113,.15)]">
-                      1
-                    </div>
-                    <div className="absolute bottom-5 left-5 right-5 rounded-2xl border border-signal-red/20 bg-signal-red/10 p-4">
-                      <div className="flex items-center gap-2 text-signal-red">
-                        <AlertTriangle className="h-4 w-4" />
-                        <strong>Checkout CTA overlaps coupon error</strong>
-                      </div>
-                      <p className="mt-2 text-sm leading-6 text-white/58">
-                        Actual: validation message is obscured after applying expired coupon. Expected: feedback stays
-                        readable and action remains reachable.
-                      </p>
-                    </div>
+
+                    <AnimatePresence>
+                      {screenshotState === "error" && (
+                        <motion.div
+                          initial={{ scale: 0, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          exit={{ scale: 0, opacity: 0 }}
+                          className="absolute bottom-20 right-[26%] grid h-9 w-9 place-items-center rounded-full bg-signal-red text-sm font-black shadow-[0_0_0_12px_rgba(255,88,113,.15)]"
+                        >
+                          1
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    <AnimatePresence>
+                      {screenshotState === "error" ? (
+                        <motion.div
+                          initial={{ opacity: 0, y: 30 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 30 }}
+                          className="absolute bottom-5 left-5 right-5 rounded-2xl border border-signal-red/20 bg-signal-red/10 p-4"
+                        >
+                          <div className="flex items-center gap-2 text-signal-red">
+                            <AlertTriangle className="h-4 w-4" />
+                            <strong>Checkout CTA overlaps coupon error</strong>
+                          </div>
+                          <p className="mt-2 text-sm leading-6 text-white/58">
+                            Actual: validation message is obscured after applying expired coupon. Expected: feedback stays
+                            readable and action remains reachable.
+                          </p>
+                        </motion.div>
+                      ) : (
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          className="absolute bottom-5 left-5 right-5 rounded-2xl border border-white/5 bg-white/[0.02] p-4 text-center"
+                        >
+                          <p className="font-mono text-xs text-white/34 uppercase tracking-wider">
+                            {simStep === null ? "Ready to simulate" : "Simulating user interactions..."}
+                          </p>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 </section>
               </div>
@@ -240,14 +656,16 @@ export function DashboardShell() {
               <section className="rounded-[1.75rem] border border-white/[.08] bg-white/[.04] p-4">
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                   <h2 className="font-semibold">Environment monitoring</h2>
-                  <Badge tone="green">Prod healthy</Badge>
+                  <Badge tone={simStep !== null ? "cyan" : "green"}>
+                    {simStep !== null ? "monitoring active" : "Prod healthy"}
+                  </Badge>
                 </div>
                 <div className="grid gap-3 md:grid-cols-4">
                   {[
                     { icon: Activity, label: "Uptime", value: "99.99%" },
-                    { icon: ShieldCheck, label: "A11y score", value: "68%" },
-                    { icon: KeyRound, label: "Auth flow", value: "Restored" },
-                    { icon: Video, label: "Recordings", value: "12 clips" }
+                    { icon: ShieldCheck, label: "A11y score", value: simStep !== null && simStep < 5 ? "100%" : "68%" },
+                    { icon: KeyRound, label: "Auth flow", value: simStep !== null && simStep === 0 ? "Pending" : "Restored" },
+                    { icon: Video, label: "Recordings", value: simStep !== null ? `${simStep} clips` : "12 clips" }
                   ].map((item) => (
                     <div key={item.label} className="rounded-2xl border border-white/[.07] bg-black/20 p-4">
                       <item.icon className="mb-6 h-5 w-5 text-signal-cyan" />
@@ -265,8 +683,11 @@ export function DashboardShell() {
                   <h2 className="font-semibold">AI reasoning</h2>
                   <Terminal className="h-4 w-4 text-signal-green" />
                 </div>
-                <div className="terminal-scroll max-h-[330px] overflow-auto rounded-2xl bg-ink-950 p-4 font-mono text-xs leading-7 text-signal-green/86">
-                  {reasoningLogs.map((log) => (
+                <div 
+                  ref={terminalRef}
+                  className="terminal-scroll max-h-[330px] overflow-auto rounded-2xl bg-ink-950 p-4 font-mono text-xs leading-7 text-signal-green/86 scroll-smooth"
+                >
+                  {currentLogs.map((log) => (
                     <p key={log}>{log}</p>
                   ))}
                 </div>
@@ -278,12 +699,12 @@ export function DashboardShell() {
                   <BarChart3 className="h-4 w-4 text-signal-cyan" />
                 </div>
                 <div className="space-y-3">
-                  {activityFeed.map((activity, index) => (
+                  {currentActivities.map((activity, index) => (
                     <motion.div
-                      key={activity}
+                      key={`${activity}-${index}`}
                       initial={{ opacity: 0, x: 14 }}
                       animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.08 }}
+                      transition={{ delay: 0.05 }}
                       className="flex gap-3 rounded-2xl border border-white/[.07] bg-black/18 p-3"
                     >
                       <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-signal-cyan shadow-[0_0_16px_rgba(105,231,255,.8)]" />
@@ -293,12 +714,22 @@ export function DashboardShell() {
                 </div>
               </section>
 
-              <section className="rounded-[1.75rem] border border-signal-red/20 bg-signal-red/10 p-4">
+              <section className={cn(
+                "rounded-[1.75rem] border p-4 transition duration-500",
+                prStatus.tone === "red" && "border-signal-red/20 bg-signal-red/10",
+                prStatus.tone === "amber" && "border-signal-amber/20 bg-signal-amber/10",
+                prStatus.tone === "cyan" && "border-signal-cyan/20 bg-signal-cyan/10"
+              )}>
                 <div className="flex items-center gap-3">
-                  <Bug className="h-5 w-5 text-signal-red" />
+                  <Bug className={cn(
+                    "h-5 w-5",
+                    prStatus.tone === "red" && "text-signal-red",
+                    prStatus.tone === "amber" && "text-signal-amber",
+                    prStatus.tone === "cyan" && "text-signal-cyan"
+                  )} />
                   <div>
-                    <h2 className="font-semibold">PR #428 blocked</h2>
-                    <p className="mt-1 text-sm text-white/52">High severity visual regression requires review.</p>
+                    <h2 className="font-semibold">{prStatus.title}</h2>
+                    <p className="mt-1 text-sm text-white/52">{prStatus.desc}</p>
                   </div>
                 </div>
               </section>

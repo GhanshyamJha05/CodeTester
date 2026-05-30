@@ -61,11 +61,18 @@ const config: Config = {
         "float": {
           "0%, 100%": { transform: "translateY(0)" },
           "50%": { transform: "translateY(-20px)" }
+        },
+        "beam": {
+          "0%": { top: "0%", opacity: "0" },
+          "10%": { opacity: "0.8" },
+          "90%": { opacity: "0.8" },
+          "100%": { top: "100%", opacity: "0" }
         }
       },
       animation: {
         "magma-pulse": "magma-pulse 4s ease-in-out infinite",
         "float": "float 6s ease-in-out infinite",
+        "beam": "beam 2.5s ease-in-out infinite"
       }
     }
   },
