@@ -132,3 +132,41 @@ export const pricing = [
 
 export const severityIcon = Bug;
 export const speedIcon = Zap;
+
+export const prScanIssues = [
+  {
+    title: "Checkout CTA overlaps coupon error",
+    severity: "High",
+    area: "Mobile checkout",
+    confidence: "94%",
+    detail:
+      "On a 390px viewport, the expired coupon validation message is partially hidden by the primary checkout button.",
+    repro: ["Open preview checkout page", "Apply coupon SPRING-OLD", "Observe validation copy under CTA"]
+  },
+  {
+    title: "Focus escapes payment modal",
+    severity: "Medium",
+    area: "Accessibility",
+    confidence: "88%",
+    detail:
+      "Keyboard focus moves behind the payment modal after six tab presses, making the dialog difficult to complete without a mouse.",
+    repro: ["Open payment modal", "Navigate with Tab", "Focus moves to page content behind the modal"]
+  },
+  {
+    title: "Coupon API returns stale copy",
+    severity: "Low",
+    area: "API feedback",
+    confidence: "81%",
+    detail:
+      "The 422 response still references an old promotion window, which can confuse users applying expired codes.",
+    repro: ["Submit expired coupon", "Inspect validation message", "Compare copy to current campaign dates"]
+  }
+];
+
+export const prScanTimeline = [
+  "Connected to PR #428 and read changed files",
+  "Mapped diff to checkout, coupon, wallet, and auth flows",
+  "Launched Chromium workers for desktop and mobile previews",
+  "Captured screenshots, console errors, network traces, and accessibility signals",
+  "Drafted GitHub review comment with severity, confidence, and repro steps"
+];

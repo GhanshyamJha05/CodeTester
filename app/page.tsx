@@ -3,6 +3,7 @@ import { AbyssalTerminal } from "@/components/abyssal/abyssal-terminal";
 import { SiteFooter } from "@/components/landing/footer";
 import { Hero } from "@/components/landing/hero";
 import { PricingSection } from "@/components/landing/pricing-section";
+import { PrScanDemo } from "@/components/landing/pr-scan-demo";
 import { SiteNav } from "@/components/landing/site-nav";
 import { HowItWorksSection } from "@/components/landing/how-it-works/how-it-works-section";
 
@@ -14,6 +15,7 @@ export default function Home() {
       
       <div className="relative z-10">
         <Hero />
+        <PrScanDemo />
         <HowItWorksSection />
         <AbyssalTerminal />
         <PricingSection />
@@ -25,4 +27,3 @@ export default function Home() {
     </main>
   );
 }
-

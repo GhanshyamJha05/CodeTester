@@ -1,8 +1,7 @@
 "use client";
 
 import { motion, useScroll, useTransform } from "framer-motion";
-import { Terminal, Shield, Zap, Activity, Hexagon, Play } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Activity } from "lucide-react";
 
 export function Hero() {
   return (
@@ -97,7 +96,7 @@ export function Hero() {
 
         {/* Hellfire Button CTA */}
         <div className="mt-20 flex flex-col md:flex-row items-center gap-8">
-          <button className="relative group px-10 py-5 rounded-full overflow-hidden">
+          <a href="#pr-demo" className="relative group px-10 py-5 rounded-full overflow-hidden">
             <div className="absolute inset-0 bg-abyssal-hellfire-magma transition-transform duration-500 group-hover:scale-110" />
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(0,0,0,0.5),transparent)] opacity-60" />
             <div className="absolute inset-0 border border-white/20 rounded-full" />
@@ -107,9 +106,9 @@ export function Hero() {
               className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,#ff4d00,transparent)] opacity-50 blur-xl" 
             />
             <span className="relative z-10 font-mono text-sm uppercase tracking-[0.3em] text-white font-bold">
-              ENTER MISSION CONTROL
+              Test a PR
             </span>
-          </button>
+          </a>
           
           <div className="flex items-center gap-4">
              <div className="h-[1px] w-12 bg-white/10" />
@@ -138,4 +137,3 @@ function CreepingVine({ className }: { className?: string }) {
     </svg>
   );
 }
-

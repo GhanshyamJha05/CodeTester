@@ -26,7 +26,8 @@ export function SiteFooter() {
         </div>
         <nav className="flex flex-wrap gap-4 text-sm text-white/44">
           <Link href="/dashboard" className="hover:text-white">Dashboard</Link>
-          <a href="#workflow" className="hover:text-white">Workflow</a>
+          <a href="#pr-demo" className="hover:text-white">PR demo</a>
+          <a href="#how-it-works" className="hover:text-white">Workflow</a>
           <a href="#pricing" className="hover:text-white">Pricing</a>
         </nav>
       </div>

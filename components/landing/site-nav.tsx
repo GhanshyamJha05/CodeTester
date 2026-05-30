@@ -1,9 +1,16 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, Hexagon, Activity, Shield, Zap } from "lucide-react";
+import { Menu, X, Hexagon } from "lucide-react";
 import { useState } from "react";
 import Link from "next/link";
+
+const navItems = [
+  { label: "PR Demo", href: "#pr-demo" },
+  { label: "Workflow", href: "#how-it-works" },
+  { label: "Pricing", href: "#pricing" },
+  { label: "Dashboard", href: "/dashboard" }
+];
 
 export function SiteNav() {
   const [isOpen, setIsOpen] = useState(false);
@@ -20,20 +27,23 @@ export function SiteNav() {
         </Link>
 
         <div className="hidden lg:flex items-center gap-12">
-          {["Nexus", "Forest", "Thermal", "Terminal"].map((item) => (
-            <a key={item} href={`#${item.toLowerCase()}`} className="group relative py-2 overflow-hidden">
+          {navItems.map((item) => (
+            <a key={item.label} href={item.href} className="group relative py-2 overflow-hidden">
                <span className="relative z-10 font-mono text-[10px] text-white/40 uppercase tracking-[0.4em] group-hover:text-white transition-colors duration-500">
-                 {item}
+                 {item.label}
                </span>
                <div className="absolute bottom-0 left-0 w-full h-[1px] bg-abyssal-nature-emerald translate-y-full group-hover:translate-y-0 transition-transform duration-500 shadow-[0_0_8px_#10b981]" />
             </a>
           ))}
-          <button className="px-6 py-2 rounded-full border border-white/10 bg-white/5 font-mono text-[10px] text-white uppercase tracking-widest hover:bg-white/10 transition-colors">
-            Connect
-          </button>
+          <a
+            href="#pr-demo"
+            className="px-6 py-2 rounded-full border border-white/10 bg-white/5 font-mono text-[10px] text-white uppercase tracking-widest hover:bg-white/10 transition-colors"
+          >
+            Test a PR
+          </a>
         </div>
 
-        <button className="lg:hidden text-white" onClick={() => setIsOpen(!isOpen)}>
+        <button className="lg:hidden text-white" onClick={() => setIsOpen(!isOpen)} aria-label="Toggle menu" type="button">
            {isOpen ? <X /> : <Menu />}
         </button>
       </div>
@@ -47,9 +57,14 @@ export function SiteNav() {
             className="absolute top-full left-0 w-full bg-black/90 backdrop-blur-2xl border-b border-white/5 p-12 lg:hidden"
           >
             <div className="flex flex-col gap-8">
-              {["Nexus", "Forest", "Thermal", "Terminal"].map((item) => (
-                <a key={item} href={`#${item.toLowerCase()}`} className="font-brutal text-4xl font-black text-white uppercase tracking-tighter">
-                  {item}
+              {navItems.map((item) => (
+                <a
+                  key={item.label}
+                  href={item.href}
+                  onClick={() => setIsOpen(false)}
+                  className="font-brutal text-4xl font-black text-white uppercase tracking-tighter"
+                >
+                  {item.label}
                 </a>
               ))}
             </div>
@@ -59,4 +74,3 @@ export function SiteNav() {
     </nav>
   );
 }
-
