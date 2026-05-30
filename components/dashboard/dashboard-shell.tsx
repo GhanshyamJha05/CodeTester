@@ -27,6 +27,7 @@ import { activityFeed, dashboardRuns, reasoningLogs } from "@/lib/data";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { VisualSandbox } from "@/components/dashboard/visual-sandbox";
 
 const nav = [
   { label: "Overview", icon: Home },
@@ -739,6 +740,8 @@ export function DashboardShell() {
                   </div>
                 </section>
               </div>
+
+              <VisualSandbox />
 
               <section className="rounded-[1.75rem] border border-white/[.08] bg-white/[.04] p-4">
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
